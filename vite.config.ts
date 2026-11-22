@@ -10,6 +10,10 @@ export default defineConfig({
             publicDirectory: 'resources/dist',
         }),
     ],
+    build: {
+        // Keeps :dir() in addon.css, which older targets rewrite into a list of :lang() guesses.
+        cssTarget: ['chrome120', 'edge120', 'firefox120', 'safari16.4'],
+    },
     test: {
         include: ['tests/js/**/*.test.ts'],
         environment: 'happy-dom',

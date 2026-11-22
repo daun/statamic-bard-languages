@@ -47,7 +47,7 @@ The menu suggests languages based on:
 
 ## Configuration
 
-Publish the config file to change the available and pinned languages. Edit `config/statamic-bard-languages.php`.
+Publish the config file to change the available and pinned languages, or how marked content looks in the editor. Edit `config/statamic-bard-languages.php`.
 
 ```sh
 php artisan vendor:publish --tag=statamic-bard-languages-config
@@ -57,6 +57,10 @@ php artisan vendor:publish --tag=statamic-bard-languages-config
 return [
     'languages' => [],  // language codes editors can pick from, empty for any language
     'pinned' => [],     // language codes suggested first in the menu, like ['en', 'es']
+    'editor' => [
+        'style' => 'line',      // 'line', 'outline', 'tag', or null for no markings in the editor
+        'show_codes' => true,   // show language codes with marked content
+    ],
 ];
 ```
 
@@ -69,6 +73,19 @@ Without a list, the menu offers every language the browser has a name for, which
 ### Pinning languages
 
 Languages in `pinned` are [suggested](#suggestions) in the menu alongside recently used ones, so the languages your site uses most are one click away.
+
+### Editor display
+
+The `editor` options control how marked content looks in the Bard editor. They don't change the rendered HTML.
+
+| Option       | Value             | Editor shows                                           |
+| ------------ | ----------------- | ------------------------------------------------------ |
+| `style`      | `'line'`          | A line under spans and beside sections. The default.   |
+|              | `'outline'`       | A thin box around spans and sections.                  |
+|              | `'tag'`           | A subtle background behind spans and sections.         |
+|              | `null` or `false` | No markings.                                           |
+| `show_codes` | `true`            | The language code of each span and section, like `FR`. |
+|              | `false`           | No codes.                                              |
 
 ### Language codes
 

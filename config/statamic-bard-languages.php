@@ -4,7 +4,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Languages
+    | Available languages
     |--------------------------------------------------------------------------
     |
     | Language codes editors can pick from, like ['en', 'fr', 'pt-BR'].
@@ -27,5 +27,27 @@ return [
     */
 
     'pinned' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Editor display
+    |--------------------------------------------------------------------------
+    |
+    | How marked content looks in the Bard editor. It doesn't change the
+    | rendered HTML on the frontend.
+    |
+    | style: 'line' underlines spans and draws a line beside sections,
+    |        'outline' draws a thin box around both,
+    |        'tag' gives both a subtle background,
+    |        null shows no markings.
+    | show_codes: show the language code with spans and sections.
+    |             Ignored without a style.
+    |
+    */
+
+    'editor' => [
+        'style' => 'line',
+        'show_codes' => true,
+    ],
 
 ];
