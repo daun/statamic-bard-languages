@@ -1,0 +1,29 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vp dev",
+        "build": "vp build",
+        "check": "vp check && vue-tsc --noEmit",
+        "fix": "vp check --fix",
+        "test": "vp test"
+    },
+    "devDependencies": {
+        "@statamic/cms": "file:./vendor/statamic/cms/resources/dist-package",
+        "@tiptap/core": "^3.28.0",
+        "@tiptap/pm": "^3.28.0",
+        "@tiptap/starter-kit": "^3.28.0",
+        "happy-dom": "^21.0.4",
+        "laravel-vite-plugin": "^3.0.0",
+        "typescript": "^6.0.0",
+        "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+        "vite-plus": "^1.7.0",
+        "vitest": "5.1.0",
+        "vue": "^3.5.0",
+        "vue-tsc": "^3.0.0"
+    },
+    "overrides": {
+        "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+        "vitest": "5.1.0"
+    }
+}

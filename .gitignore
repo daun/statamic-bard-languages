@@ -1,0 +1,10 @@
+.DS_Store
+.idea
+.vscode
+.phpunit.cache
+.phpunit.result.cache
+composer.lock
+coverage.xml
+node_modules
+vendor
+/tests/__fixtures__

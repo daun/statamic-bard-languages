@@ -1,0 +1,73 @@
+{
+    "name": "daun/statamic-bard-languages",
+    "description": "Mark foreign-language words and sections of Statamic content",
+    "license": "MIT",
+    "type": "statamic-addon",
+    "keywords": [
+        "statamic",
+        "bard",
+        "language",
+        "lang",
+        "rtl",
+        "i18n",
+        "multilingual",
+        "accessibility",
+        "a11y"
+    ],
+    "authors": [
+        {
+            "name": "Philipp Daun",
+            "email": "post@philippdaun.net",
+            "homepage": "https://philippdaun.net"
+        }
+    ],
+    "homepage": "https://github.com/daun/statamic-bard-languages",
+    "support": {
+        "issues": "https://github.com/daun/statamic-bard-languages/issues",
+        "source": "https://github.com/daun/statamic-bard-languages"
+    },
+    "require": {
+        "php": "^8.3",
+        "statamic/cms": "^6.8"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.14",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpunit/phpunit": "^12.0 || ^13.0"
+    },
+    "suggest": {
+        "ext-intl": "Derives text direction for any language tag instead of a short built-in list"
+    },
+    "autoload": {
+        "psr-4": {
+            "Daun\\StatamicBardLanguages\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Daun\\StatamicBardLanguages\\Tests\\": "tests"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Daun\\StatamicBardLanguages\\ServiceProvider"
+            ]
+        },
+        "statamic": {
+            "name": "Bard Languages",
+            "description": "Mark Bard passages as another language, with text direction automatically derived."
+        }
+    },
+    "scripts": {
+        "analyse": "phpstan analyse --memory-limit=2G",
+        "format": "pint",
+        "lint": "pint --test",
+        "test": "phpunit",
+        "test:ci": "phpunit --coverage-clover coverage.xml"
+    }
+}

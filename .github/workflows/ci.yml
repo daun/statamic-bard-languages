@@ -1,0 +1,101 @@
+name: CI
+
+on:
+    pull_request:
+        paths-ignore:
+            - '**.md'
+    push:
+        branches: [main]
+        paths-ignore:
+            - '**.md'
+
+jobs:
+    php:
+        runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: true
+            matrix:
+                php: [8.5, 8.4, 8.3]
+                laravel: [13.*, 12.*]
+                include:
+                    - laravel: 13.*
+                      testbench: 11.*
+                    - laravel: 12.*
+                      testbench: 10.*
+
+        name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7.0.1
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@2.40.0
+              with:
+                  php-version: ${{ matrix.php }}
+                  tools: composer:v2
+                  coverage: pcov
+
+            - name: Setup problem matchers
+              run: echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
+
+            - name: Install dependencies
+              run: |
+                  composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
+                  composer update --prefer-dist --no-interaction --no-progress
+
+            - name: Check code style
+              run: composer lint
+
+            - name: Run static analysis
+              run: composer analyse
+
+            - name: Run tests
+              run: composer test:ci
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v7.1.1
+              if: ${{ matrix.php == '8.5' && matrix.laravel == '13.*' }}
+              with:
+                  files: ./coverage.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  fail_ci_if_error: false
+
+    js:
+        runs-on: ubuntu-latest
+
+        name: JavaScript
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7.0.1
+
+            # The npm package @statamic/cms ships inside the Composer package
+            - name: Setup PHP
+              uses: shivammathur/setup-php@2.40.0
+              with:
+                  php-version: 8.5
+                  tools: composer:v2
+                  coverage: none
+
+            - name: Install Composer dependencies
+              run: composer update --prefer-dist --no-interaction --no-progress --no-dev
+
+            - name: Setup Node
+              uses: actions/setup-node@v7.1.0
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - name: Install npm dependencies
+              run: npm ci
+
+            - name: Check formatting, lint and types
+              run: npm run check
+
+            - name: Run tests
+              run: npm test
+
+            - name: Build assets
+              run: npm run build
