@@ -7,8 +7,11 @@ return [
     | Languages
     |--------------------------------------------------------------------------
     |
-    | BCP 47 tags editors can pick from. Leave empty to allow every language
-    | the browser has a name for.
+    | Language codes editors can pick from, like ['en', 'fr', 'pt-BR'].
+    | Leave empty to allow every language the browser has a name for.
+    |
+    | Codes are BCP 47 language tags, the same codes used in HTML's lang
+    | attribute: https://www.w3.org/International/articles/language-tags/
     |
     */
 
@@ -19,7 +22,7 @@ return [
     | Pinned languages
     |--------------------------------------------------------------------------
     |
-    | Tags suggested first in the language menu.
+    | Language codes suggested first in the language menu, like ['en', 'es'].
     |
     */
 

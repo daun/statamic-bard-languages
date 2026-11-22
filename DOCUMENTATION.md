@@ -1,8 +1,10 @@
 # Statamic Bard Languages Documentation
 
-This addon lets editors mark words, sentences, and whole blocks of Bard content as written in another language. It stores a `lang` and `dir` attribute on the content and renders them as plain HTML.
+This addon lets editors mark words, sentences, and whole blocks of Bard content as written in another language.
 
-[Usage](#usage) · [Suggestions](#suggestions) · [Configuration](#configuration) · [Text direction](#text-direction) · [Caveats](#caveats)
+It stores a `lang` and `dir` attribute on the content and renders them as plain HTML.
+
+[Usage](#usage) · [Configuration](#configuration) · [Text direction](#text-direction) · [Caveats](#caveats)
 
 ## Usage
 
@@ -32,11 +34,11 @@ or
 
 ![Language section and span in the editor](art/editor.png)
 
-## Suggestions
+### Suggestions
 
 The menu suggests languages based on:
 
-- **Pinned languages** from the config.
+- **[Pinned languages](#pinning-languages)** from the config.
 - **Recently used languages** of the current editor.
 - **The script of the selected text.** Greek letters suggest Greek and Ancient Greek.
 - **Chrome's built-in [language detector](https://developer.chrome.com/docs/ai/language-detection)** for longer text, if its model is already downloaded.
@@ -51,18 +53,30 @@ php artisan vendor:publish --tag=statamic-bard-languages-config
 
 ```php
 return [
-    'languages' => [],  // BCP 47 tags editors can pick from, empty for any language
-    'pinned' => [],     // tags suggested first in the menu, like ['en', 'es']
+    'languages' => [],  // language codes editors can pick from, empty for any language
+    'pinned' => [],     // language codes suggested first in the menu, like ['en', 'es']
 ];
 ```
 
-### Restricting languages
+### Limiting languages
 
-With a `languages` list, editors can only pick those languages, and content in other languages is ignored when parsing HTML. A listed language also allows its regional variants, so `fr` allows `fr-CA`.
+With `languages` set to an array, editors can only pick those languages, and content in other languages is ignored when parsing HTML. A listed language also allows its regional variants, so `fr` allows `fr-CA`.
 
-### Language names
+Without a list, the menu offers every language the browser has a name for, which is a shorter list in Chromium-based browsers. See [caveats](#caveats).
 
-Language names come from the browser (`Intl.DisplayNames`). Chromium-based browsers like Chrome, Edge, and Brave only know names for about 150 languages, while Firefox and Safari know about 600. Without a `languages` list, editors in Chromium see a shorter list.
+### Pinning languages
+
+Languages in `pinned` are [suggested](#suggestions) in the menu alongside recently used ones, so the languages your site uses most are one click away.
+
+### Language codes
+
+Languages are identified by the same codes as HTML's `lang` attribute. Most of the time this is a two-letter code like `en`, `fr`, or `ar`. A region or script is added when the variant matters. Look up the code for any language with the [language subtag lookup](https://r12a.github.io/app-subtags/).
+
+| Code      | Language                        |
+| --------- | ------------------------------- |
+| `de`      | German                          |
+| `pt-BR`   | Portuguese as used in Brazil    |
+| `sr-Latn` | Serbian written in Latin script |
 
 ## Text direction
 
@@ -74,6 +88,7 @@ Both `lang` and `dir` are stored on each node, as the W3C recommends in [Strings
 ## Caveats
 
 - **Sections can't be nested.** Use a span to mark a different language inside a section.
+- **Chromium-based browsers know fewer language names.** Names come from the browser (`Intl.DisplayNames`): Chrome, Edge, and Brave know about 150 languages, Firefox and Safari about 600. Without a `languages` list, editors in Chromium see a shorter list.
 - **Without the `intl` extension**, script subtags are ignored when a direction is derived at render time, so `az-Arab` renders as left-to-right.
 
 ## Development
