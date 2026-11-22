@@ -1,0 +1,26 @@
+{
+  "resources/css/addon.css": {
+    "file": "assets/addon-CPyw6vl8.css",
+    "name": "addon",
+    "names": [
+      "addon.css"
+    ],
+    "src": "resources/css/addon.css",
+    "isEntry": true
+  },
+  "resources/js/addon.ts": {
+    "file": "assets/addon-tEs1YxyH.js",
+    "name": "addon",
+    "src": "resources/js/addon.ts",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/svg/icons/language.svg?raw"
+    ]
+  },
+  "resources/svg/icons/language.svg?raw": {
+    "file": "assets/language-wpuVvBTd.js",
+    "name": "language",
+    "src": "resources/svg/icons/language.svg?raw",
+    "isDynamicEntry": true
+  }
+}
