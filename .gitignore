@@ -8,3 +8,4 @@ coverage.xml
 node_modules
 vendor
 /tests/__fixtures__
+/playground
