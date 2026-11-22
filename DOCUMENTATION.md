@@ -32,7 +32,7 @@ or
 </div>
 ```
 
-![Language section and span in the editor](art/editor.png)
+![An Arabic section and spans in several languages in the editor](docs/art/editor.png)
 
 ### Suggestions
 
@@ -42,6 +42,8 @@ The menu suggests languages based on:
 - **Recently used languages** of the current editor.
 - **The script of the selected text.** Greek letters suggest Greek and Ancient Greek.
 - **Chrome's built-in [language detector](https://developer.chrome.com/docs/ai/language-detection)** for longer text, if its model is already downloaded.
+
+![Recently used languages suggested for the selected text](docs/art/language-menu.png)
 
 ## Configuration
 

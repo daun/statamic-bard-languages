@@ -2,7 +2,7 @@
 
 **Mark words and sections of Bard content as written in another language.**
 
-![Language menu in a Bard field](art/language-menu.png)
+![Language menu marking an Arabic block in a Bard field](docs/art/language-menu-section.png)
 
 ## How it works
 
