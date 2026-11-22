@@ -15,6 +15,7 @@
                     class="size-3.5!"
                     :class="{ 'group-hover:text-white text-yellow-300!': active && variant === 'floating' }"
                 />
+                <span v-if="badge" class="bard-language-badge" aria-hidden="true">{{ badge }}</span>
             </Button>
         </template>
         <div
@@ -73,10 +74,16 @@
                         @click="pick(language)"
                     >
                         <span class="truncate">{{ language.label }}</span>
-                        <bdi v-if="language.native" :dir="language.dir" class="truncate opacity-50">{{
-                            language.native
-                        }}</bdi>
-                        <span class="ms-auto text-xs opacity-50">{{ language.code }}</span>
+                        <bdi
+                            v-if="language.native"
+                            :dir="language.dir"
+                            class="truncate opacity-50"
+                            style="flex: 1 1 0; max-width: max-content"
+                            >{{ language.native }}</bdi
+                        >
+                        <span class="ms-auto shrink-0 whitespace-nowrap text-xs uppercase opacity-50">{{
+                            language.code
+                        }}</span>
                     </div>
                 </template>
                 <div v-if="!groups.length" class="p-3 text-center text-xs text-gray-600">{{ __('No results') }}</div>
@@ -90,7 +97,16 @@ import { defineComponent } from 'vue';
 import type { Editor } from '@tiptap/core';
 import { Button, Icon, Input, Popover } from '@statamic/cms/ui';
 import { ToolbarButtonMixin } from '@statamic/cms/bard';
-import { currentLanguages, languageTarget, type LanguageAttributes, type LanguageTarget } from '../tiptap/extensions';
+import {
+    currentLanguages,
+    languageTarget,
+    removableTarget,
+    selectionLanguages,
+    spanLanguages,
+    type SelectionLanguages,
+    type LanguageAttributes,
+    type LanguageTarget,
+} from '../tiptap/extensions';
 import type { Language, Languages } from '../language/languages';
 import { detectLanguages } from '../language/detect';
 import { recentLanguages, rememberLanguage } from '../language/recent';
@@ -116,6 +132,9 @@ export default defineComponent({
             query: '',
             target: 'span' as LanguageTarget,
             current: { span: null, section: null } as Record<LanguageTarget, string | null>,
+            spans: [] as string[],
+            selection: { languages: [], current: [], single: true } as SelectionLanguages,
+            focused: false,
             suggested: [] as Language[],
             highlighted: null as string | null,
         };
@@ -135,15 +154,21 @@ export default defineComponent({
             return this.languageButton.languages;
         },
 
-        // The innermost language goes first: a marked word before the section around it.
+        badge(): string | null {
+            const [lang, ...more] = this.selection.languages;
+            if (!(this.focused || this.open) || !lang) return null;
+            return lang.split('-')[0]! + (more.length ? '+' : '');
+        },
+
         removable(): LanguageTarget | null {
-            return this.current.span ? 'span' : this.current.section ? 'section' : null;
+            return removableTarget(this.target, this.current);
         },
 
         removeText(): string {
             const label = this.languages.label(this.current[this.removable ?? 'span'] ?? '');
-            return this.removable === 'section'
-                ? __('Remove :language from block', { language: label })
+            if (this.removable === 'section') return __('Remove :language from block', { language: label });
+            return this.spans.length > 1
+                ? __('Remove languages from text')
                 : __('Remove :language from text', { language: label });
         },
 
@@ -153,9 +178,15 @@ export default defineComponent({
                     (group) => group.items.length,
                 );
             }
+            const inSelection = this.selection.languages
+                .map((code) => this.languages.find(code))
+                .filter((language) => language !== null);
+            const shown = new Set(inSelection.map((language) => language.code));
+            const rest = (list: Language[]) => list.filter((language) => !shown.has(language.code));
             return [
-                { name: __('Suggested'), items: this.suggested },
-                { name: __('All languages'), items: this.languages.all() },
+                { name: this.selection.single ? __('Selected') : __('In selection'), items: inSelection },
+                { name: __('Suggested'), items: rest(this.suggested) },
+                { name: __('All languages'), items: rest(this.languages.all()) },
             ].filter((group) => group.items.length);
         },
 
@@ -183,20 +214,35 @@ export default defineComponent({
 
     created() {
         this.update();
+        this.focused = this.tiptap.isFocused;
         this.tiptap.on('transaction', this.update);
+        this.tiptap.on('focus', this.onFocus);
+        this.tiptap.on('blur', this.onBlur);
     },
 
     beforeUnmount() {
         this.tiptap.off('transaction', this.update);
+        this.tiptap.off('focus', this.onFocus);
+        this.tiptap.off('blur', this.onBlur);
     },
 
     methods: {
+        onFocus() {
+            this.focused = true;
+        },
+
+        onBlur() {
+            this.focused = false;
+        },
+
         isCurrent(language: Language): boolean {
-            return language.code === this.current[this.target];
+            return this.selection.current.includes(language.code);
         },
 
         update() {
             this.current = currentLanguages(this.tiptap.state);
+            this.spans = spanLanguages(this.tiptap.state);
+            this.selection = selectionLanguages(this.tiptap.state);
         },
 
         /** The selected text, or the whole block for a bare cursor. */

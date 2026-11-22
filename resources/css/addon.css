@@ -1,25 +1,72 @@
-/* Editor content: one gray rule marks both spans (underneath) and sections (alongside). */
+/*
+ * Marked content in the editor, by `data-bard-language-style`: line, outline, or tag.
+ * Colors read the public --bard-languages-* properties, which can be set on any ancestor.
+ */
 
-.bard-content [data-bard-language] {
-    --bard-language-rule: color-mix(in srgb, currentColor 25%, transparent);
+.bard-content :is([data-bard-language], .bard-language-code) {
+    --_bl-line: var(--bard-languages-line-color, color-mix(in srgb, currentColor 18%, transparent));
+    --_bl-outline: var(--bard-languages-outline-color, color-mix(in srgb, currentColor 11%, transparent));
+    --_bl-tag: var(
+        --bard-languages-tag-color,
+        color-mix(in oklab, var(--theme-color-gray-50), var(--theme-color-gray-200) 35%)
+    );
+    --_bl-tag-section: var(
+        --bard-languages-tag-section-color,
+        color-mix(in oklab, var(--theme-color-gray-50), var(--theme-color-gray-200) 17%)
+    );
+    --_bl-tag-nested: var(--bard-languages-tag-nested-color, var(--color-white));
+    --_bl-code: var(--bard-languages-code-color, color-mix(in srgb, currentColor 50%, transparent));
 }
 
-.bard-content span[data-bard-language] {
-    /* Not text-decoration: Chrome repaints that black under words marked by spellcheck */
-    padding-bottom: 1px;
-    border-bottom: 1.5px solid var(--bard-language-rule);
+.dark .bard-content :is([data-bard-language], .bard-language-code) {
+    --_bl-outline: var(--bard-languages-outline-color, color-mix(in srgb, currentColor 15%, transparent));
+    --_bl-tag: var(--bard-languages-tag-color, color-mix(in oklab, var(--theme-color-gray-925), black 55%));
+    --_bl-tag-section: var(
+        --bard-languages-tag-section-color,
+        color-mix(in oklab, var(--theme-color-gray-925), black 25%)
+    );
+    --_bl-tag-nested: var(--bard-languages-tag-nested-color, var(--theme-color-gray-900));
+    --_bl-code: var(--bard-languages-code-color, color-mix(in srgb, currentColor 58%, transparent));
 }
+
+/* Bard's first and last child margin reset doesn't reach into sections */
+.bard-content div[data-bard-language-style] > :first-child {
+    margin-block-start: 0;
+}
+
+.bard-content div[data-bard-language-style] > :last-child {
+    margin-block-end: 0;
+}
+
+/* Language codes */
 
 .bard-content .bard-language-code,
-.bard-content div[data-bard-language]::before {
+.bard-content [data-bard-language-code]::before,
+.bard-content [data-bard-language-code]::after {
+    color: var(--_bl-code);
     font-size: 0.5625rem;
     font-weight: 600;
+    letter-spacing: 0.04em;
     line-height: 1;
     text-transform: uppercase;
-    opacity: 0.55;
     unicode-bidi: isolate;
     pointer-events: none;
     user-select: none;
+}
+
+/* Line: a rule under spans and beside sections, codes raised after spans and above sections */
+
+.bard-content span[data-bard-language-style='line'] {
+    /* Not text-decoration: Chrome repaints that black under words marked by spellcheck */
+    padding-bottom: 1px;
+    border-bottom: 1.5px solid var(--_bl-line);
+}
+
+.bard-content div[data-bard-language-style='line'] {
+    position: relative;
+    margin-block: 1.5em;
+    padding-inline-start: 0.65em;
+    border-inline-start: 1.5px solid var(--_bl-line);
 }
 
 .bard-content .bard-language-code {
@@ -31,17 +78,126 @@
     margin-inline: 0 0.2em;
 }
 
-.bard-content div[data-bard-language] {
-    position: relative;
-    margin-block: 1.5em;
-    padding-inline-start: 0.65em;
-    border-inline-start: 1.5px solid var(--bard-language-rule);
-}
-
-.bard-content div[data-bard-language]::before {
+.bard-content div[data-bard-language-style='line'][data-bard-language-code]::before {
     content: attr(data-bard-language-code);
     position: absolute;
     inset-block-end: calc(100% + 0.4em);
     inset-inline-start: 0;
     padding-inline-start: inherit;
+}
+
+/* Outline and tag: a box around spans and sections, codes inside it */
+
+.bard-content span:is([data-bard-language-style='outline'], [data-bard-language-style='tag']) {
+    padding: 0.1em 0.3em;
+    border-radius: 0.3em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.bard-content div:is([data-bard-language-style='outline'], [data-bard-language-style='tag']) {
+    position: relative;
+    margin-block: 1.25em;
+    padding: 0.7em 0.9em;
+    border-radius: 0.5em;
+}
+
+.bard-content [data-bard-language-style='outline'] {
+    border: 1px solid var(--_bl-outline);
+}
+
+/* Same size as tags: the border takes its width from the padding */
+.bard-content span[data-bard-language-style='outline'] {
+    padding: calc(0.1em - 1px) calc(0.3em - 1px);
+}
+
+.bard-content span[data-bard-language-style='tag'] {
+    background: var(--_bl-tag);
+}
+
+.bard-content div[data-bard-language-style='tag'] {
+    background: var(--_bl-tag-section);
+}
+
+/* Spans in a section punch through to the editor's background instead of layering on it */
+.bard-content div[data-bard-language-style='tag'] span[data-bard-language-style='tag'] {
+    background: var(--_bl-tag-nested);
+}
+
+/* On the baseline, nudged up towards the x-height */
+.bard-content
+    span:is([data-bard-language-style='outline'], [data-bard-language-style='tag'])[data-bard-language-code]::before {
+    content: attr(data-bard-language-code);
+    margin-inline-end: 0.4em;
+    vertical-align: 1px;
+}
+
+/* The code goes on the paragraph's start side: RTL spans in LTR text take it at their logical end */
+.bard-content
+    :dir(ltr)
+    > span:is(
+        [data-bard-language-style='outline'],
+        [data-bard-language-style='tag']
+    )[data-bard-language-code][dir='rtl']::before,
+.bard-content
+    :dir(rtl)
+    > span:is(
+        [data-bard-language-style='outline'],
+        [data-bard-language-style='tag']
+    )[data-bard-language-code][dir='ltr']::before {
+    content: none;
+}
+
+.bard-content
+    :dir(ltr)
+    > span:is(
+        [data-bard-language-style='outline'],
+        [data-bard-language-style='tag']
+    )[data-bard-language-code][dir='rtl']::after,
+.bard-content
+    :dir(rtl)
+    > span:is(
+        [data-bard-language-style='outline'],
+        [data-bard-language-style='tag']
+    )[data-bard-language-code][dir='ltr']::after {
+    content: attr(data-bard-language-code);
+    margin-inline-start: 0.4em;
+    vertical-align: 1px;
+}
+
+.bard-content div:is([data-bard-language-style='outline'], [data-bard-language-style='tag'])[data-bard-language-code] {
+    padding-block-start: 1.55em;
+}
+
+.bard-content
+    div:is([data-bard-language-style='outline'], [data-bard-language-style='tag'])[data-bard-language-code]::before {
+    content: attr(data-bard-language-code);
+    position: absolute;
+    /* rem: the label's own em is its small font size */
+    inset-block-start: 0.75rem;
+    inset-inline-start: 0;
+    padding-inline-start: inherit;
+}
+
+/* Toolbar button: the language at the cursor, styled like Statamic's small default badge */
+
+.bard-language-badge {
+    position: absolute;
+    inset: -0.35rem -0.4rem auto auto;
+    padding: 0 0.25rem;
+    border: 1px solid var(--theme-color-gray-300);
+    border-radius: 0.1875rem;
+    background: var(--theme-color-gray-50);
+    color: var(--theme-color-gray-700);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.dark .bard-language-badge {
+    border-color: transparent;
+    background: var(--theme-color-gray-800);
+    color: var(--theme-color-gray-100);
 }

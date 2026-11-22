@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { currentLanguages, languageTarget } from '../../resources/js/tiptap/extensions';
+import {
+    currentLanguages,
+    languageTarget,
+    removableTarget,
+    selectionLanguages,
+    spanLanguages,
+} from '../../resources/js/tiptap/extensions';
 import { createEditor, cursor, html, select } from './editor';
 
 const ar = { lang: 'ar', dir: 'rtl' } as const;
@@ -126,6 +132,129 @@ describe('currentLanguages', () => {
     });
 });
 
+describe('spanLanguages', () => {
+    it('lists each language of the spans in the selection once', () => {
+        const editor = createEditor(
+            '<p><span lang="it">Ciao</span> e <span lang="fr">salut</span> e <span lang="it">ciao</span></p>',
+        );
+        editor.commands.selectAll();
+        expect(spanLanguages(editor.state)).toEqual(['it', 'fr']);
+    });
+
+    it('lists the span at the cursor only', () => {
+        const editor = createEditor('<p><span lang="it">Ciao</span> e <span lang="fr">salut</span></p>');
+        cursor(editor, 'salut', 2);
+        expect(spanLanguages(editor.state)).toEqual(['fr']);
+        cursor(editor, ' e ');
+        expect(spanLanguages(editor.state)).toEqual([]);
+    });
+});
+
+describe('selectionLanguages', () => {
+    const sentence = '<p>Say <span lang="it">ciao</span> and <span lang="fr">salut</span></p>';
+    const inBlock = `<div lang="la">${sentence}</div>`;
+
+    /** Select from the start of `start` to the end of `end`. */
+    const around = (editor: ReturnType<typeof createEditor>, start: string, end: string) => {
+        select(editor, start);
+        const from = editor.state.selection.from;
+        select(editor, end);
+        editor.commands.setTextSelection({ from, to: editor.state.selection.to });
+    };
+
+    it('is the span at the cursor, even inside a block', () => {
+        const editor = createEditor(inBlock);
+        cursor(editor, 'ciao', 2);
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['it'], current: ['it'], single: true });
+    });
+
+    it('is the block for a cursor in its plain text', () => {
+        const editor = createEditor(inBlock);
+        cursor(editor, 'Say');
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['la'], current: ['la'], single: true });
+    });
+
+    it('is a single language for a whole span selected', () => {
+        const editor = createEditor(sentence);
+        select(editor, 'ciao');
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['it'], current: ['it'], single: true });
+    });
+
+    it('is in the selection for text around a span', () => {
+        const editor = createEditor(sentence);
+        around(editor, 'Say', 'ciao');
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['it'], current: ['it'], single: false });
+    });
+
+    it('lists the block after the span for text around a span in a block', () => {
+        const editor = createEditor(inBlock);
+        around(editor, 'Say', 'ciao');
+        expect(selectionLanguages(editor.state)).toEqual({
+            languages: ['it', 'la'],
+            current: ['it', 'la'],
+            single: false,
+        });
+    });
+
+    it('lists every span across a selection', () => {
+        const editor = createEditor(sentence);
+        around(editor, 'ciao', 'salut');
+        expect(selectionLanguages(editor.state).languages).toEqual(['it', 'fr']);
+    });
+
+    it('is the block for its whole text selected', () => {
+        const editor = createEditor('<div lang="la"><p>Ave amici</p></div>');
+        select(editor, 'Ave amici');
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['la'], current: ['la'], single: true });
+    });
+
+    it('lists the spans after a whole block, which the picker changes', () => {
+        const editor = createEditor(inBlock);
+        around(editor, 'Say', 'salut');
+        expect(selectionLanguages(editor.state)).toEqual({
+            languages: ['la', 'it', 'fr'],
+            current: ['la'],
+            single: false,
+        });
+    });
+
+    it('lists the spans of a whole block without a language, changing none', () => {
+        const editor = createEditor(sentence);
+        around(editor, 'Say', 'salut');
+        expect(selectionLanguages(editor.state)).toEqual({ languages: ['it', 'fr'], current: [], single: false });
+    });
+});
+
+describe('removableTarget', () => {
+    const removable = (editor: ReturnType<typeof createEditor>) =>
+        removableTarget(languageTarget(editor.state), currentLanguages(editor.state));
+
+    it('removes the section, keeping its spans, when the whole block is selected', () => {
+        const editor = createEditor(
+            '<div lang="la"><p><span lang="it">Ciao</span> amici <span lang="fr">mes</span></p></div>',
+        );
+        // From the start to the end of the paragraph's text, as when selecting it with the mouse.
+        editor.commands.setTextSelection({ from: 2, to: 2 + 'Ciao amici mes'.length });
+        expect(removable(editor)).toBe('section');
+        editor.commands.unsetLanguage('section');
+        expect(html(editor)).toBe(
+            '<p><span lang="it" dir="ltr">Ciao</span> amici <span lang="fr" dir="ltr">mes</span></p>',
+        );
+    });
+
+    it('removes the span for a cursor inside one within a section', () => {
+        const editor = createEditor('<div lang="la"><p>amici <span lang="it">Ciao</span></p></div>');
+        cursor(editor, 'Ciao', 2);
+        expect(removable(editor)).toBe('span');
+    });
+
+    it('falls back to the section when selected text has no span', () => {
+        const editor = createEditor('<div lang="la"><p>amici cari</p></div>');
+        select(editor, 'cari');
+        expect(removable(editor)).toBe('section');
+    });
+});
+
 describe('parsing and rendering', () => {
     it('derives a missing direction', () => {
         const editor = createEditor('<p><span lang="ar">مرحبا</span></p>');
@@ -142,9 +271,29 @@ describe('parsing and rendering', () => {
     it('labels languages in the editor', () => {
         const editor = createEditor('<div lang="ar" dir="rtl"><p>Note <span lang="fa-AF">کلمه</span></p></div>');
         expect(editor.getHTML()).toContain(
-            '<div lang="ar" dir="rtl" data-bard-language="Arabic" data-bard-language-code="ar">',
+            '<div lang="ar" dir="rtl" data-bard-language="Arabic" data-bard-language-style="line" data-bard-language-code="ar">',
         );
         expect(editor.getHTML()).toContain('data-bard-language-code="fa" title="');
+    });
+
+    it('leaves out the style and codes when switched off', () => {
+        const editor = createEditor(
+            '<div lang="ar" dir="rtl"><p>Note <span lang="fa">کلمه</span></p></div>',
+            {},
+            { style: null, showCodes: false },
+        );
+        expect(editor.getHTML()).not.toMatch(/data-bard-language-(style|code)/);
+        expect(editor.view.dom.querySelector('.bard-language-code')).toBeNull();
+    });
+
+    it('leaves codes of boxed styles to CSS, inside the span', () => {
+        const editor = createEditor(
+            '<p>Say <span lang="fr">bonjour</span></p>',
+            {},
+            { style: 'outline', showCodes: true },
+        );
+        expect(editor.getHTML()).toContain('data-bard-language-style="outline" data-bard-language-code="fr"');
+        expect(editor.view.dom.querySelector('.bard-language-code')).toBeNull();
     });
 });
 

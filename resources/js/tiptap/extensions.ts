@@ -20,6 +20,14 @@ export interface LanguageAttributes {
 
 export type LanguageTarget = 'span' | 'section';
 
+/** How marked content looks in the editor, from the `editor` config. */
+export interface EditorDisplay {
+    style: 'line' | 'outline' | 'tag' | null;
+    showCodes: boolean;
+}
+
+export const defaultDisplay: EditorDisplay = { style: 'line', showCodes: true };
+
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         languageSpan: {
@@ -52,11 +60,12 @@ function languageAttributes(languages: Languages) {
 /** Short code shown in the editor: the primary subtag, `de` for `de-AT`. */
 const languageCode = (lang: string): string => lang.split('-')[0]!;
 
-/** Label and short code for addon.css. Editor only: the frontend renders through the PHP extensions. */
-function editorAttributes(languages: Languages, attrs: Record<string, any>) {
+/** Label, style, and short code for addon.css. Editor only: the frontend renders through the PHP extensions. */
+function editorAttributes(languages: Languages, display: EditorDisplay, attrs: Record<string, any>) {
     return {
         'data-bard-language': attrs.lang ? languages.label(attrs.lang) : null,
-        'data-bard-language-code': attrs.lang ? languageCode(attrs.lang) : null,
+        'data-bard-language-style': attrs.lang ? display.style : null,
+        'data-bard-language-code': attrs.lang && display.showCodes ? languageCode(attrs.lang) : null,
     };
 }
 
@@ -172,27 +181,90 @@ export function languageTarget(state: EditorState): LanguageTarget {
     return before.trim() || after.trim() ? 'span' : 'section';
 }
 
-/** Language of the span at the cursor, or of the first span in the selection. */
-function spanLanguage({ selection, schema, doc }: EditorState): string | null {
+/** Languages of the span at the cursor, or of all spans in the selection, in order of appearance. */
+export function spanLanguages({ selection, schema, doc }: EditorState): string[] {
     const spanType = schema.marks.languageSpan;
-    if (!spanType) return null;
-    if (selection.empty) return spanType.isInSet(selection.$from.marks())?.attrs.lang ?? null;
+    if (!spanType) return [];
+    if (selection.empty) {
+        const lang = spanType.isInSet(selection.$from.marks())?.attrs.lang;
+        return lang ? [lang] : [];
+    }
 
-    let lang: string | null = null;
+    const langs = new Set<string>();
     doc.nodesBetween(selection.from, selection.to, (node) => {
-        lang ??= spanType.isInSet(node.marks)?.attrs.lang ?? null;
+        const lang = spanType.isInSet(node.marks)?.attrs.lang;
+        if (lang) langs.add(lang);
     });
-    return lang;
+    return [...langs];
 }
 
-/** Languages currently applied at the selection, by target. */
+/** Languages currently applied at the selection, by target: the first span's for spans. */
 export function currentLanguages(state: EditorState): Record<LanguageTarget, string | null> {
     const sectionType = state.schema.nodes.languageSection;
     const section = sectionType ? (findSection(state.selection.$from, sectionType)?.node.attrs.lang ?? null) : null;
-    return { span: spanLanguage(state), section };
+    return { span: spanLanguages(state)[0] ?? null, section };
 }
 
-export function createLanguageSpan({ core, pm }: Tiptap, languages: Languages) {
+export interface SelectionLanguages {
+    /** Languages in the selection; the first is the one the remove button takes off. */
+    languages: string[];
+    /** The ones picking a language replaces. */
+    current: string[];
+    /** Whether all of the selection is in one language: the cursor's, a whole span's, or a block's. */
+    single: boolean;
+}
+
+/** Languages the picker shows for the selection: spans first, then the blocks around them. */
+export function selectionLanguages(state: EditorState): SelectionLanguages {
+    const { selection, schema, doc } = state;
+    const spanType = schema.marks.languageSpan;
+    const sectionType = schema.nodes.languageSection;
+    const sectionAt = (pos: number): string | null =>
+        (sectionType && findSection(doc.resolve(pos), sectionType)?.node.attrs.lang) ?? null;
+    const section = sectionAt(selection.from);
+
+    if (selection.empty) {
+        const lang = spanType?.isInSet(selection.$from.marks())?.attrs.lang ?? section;
+        return { languages: lang ? [lang] : [], current: lang ? [lang] : [], single: true };
+    }
+
+    const spans = new Set<string>();
+    const inherited = new Set<string>();
+    let bare = false;
+    doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+        if (!node.isText) return;
+        const lang = spanType?.isInSet(node.marks)?.attrs.lang;
+        if (lang) return void spans.add(lang);
+
+        const text = node.text!.slice(Math.max(selection.from - pos, 0), selection.to - pos);
+        if (!text.trim()) return;
+        const around = sectionAt(pos);
+        if (around) inherited.add(around);
+        else bare = true;
+    });
+
+    let languages: string[];
+    let current: string[];
+    if (languageTarget(state) === 'section') {
+        languages = [...new Set([...(section ? [section] : []), ...spans])];
+        current = section ? [section] : [];
+    } else {
+        languages = [...new Set([...spans, ...inherited])];
+        current = languages;
+    }
+    return { languages, current, single: languages.length === 1 && !bare };
+}
+
+/** What the remove button takes off: the language the picker targets, else the other one. */
+export function removableTarget(
+    target: LanguageTarget,
+    current: Record<LanguageTarget, string | null>,
+): LanguageTarget | null {
+    const other = target === 'section' ? 'span' : 'section';
+    return current[target] ? target : current[other] ? other : null;
+}
+
+export function createLanguageSpan({ core, pm }: Tiptap, languages: Languages, display = defaultDisplay) {
     const { Mark, mergeAttributes } = core;
 
     return Mark.create({
@@ -208,12 +280,13 @@ export function createLanguageSpan({ core, pm }: Tiptap, languages: Languages) {
         parseHTML: () => [{ tag: 'span[lang]', getAttrs: acceptKnownLanguages(languages) }],
 
         renderHTML({ mark, HTMLAttributes }) {
-            const attrs = editorAttributes(languages, mark.attrs);
+            const attrs = editorAttributes(languages, display, mark.attrs);
             return ['span', mergeAttributes(HTMLAttributes, attrs, { title: attrs['data-bard-language'] }), 0];
         },
 
         addProseMirrorPlugins() {
-            return [spanCodes(pm, this.type, this.editor.schema.nodes.languageSection)];
+            const widgets = display.showCodes && display.style === 'line';
+            return widgets ? [spanCodes(pm, this.type, this.editor.schema.nodes.languageSection)] : [];
         },
 
         addCommands() {
@@ -234,7 +307,7 @@ export function createLanguageSpan({ core, pm }: Tiptap, languages: Languages) {
     });
 }
 
-export function createLanguageSection({ core, pm }: Tiptap, languages: Languages) {
+export function createLanguageSection({ core, pm }: Tiptap, languages: Languages, display = defaultDisplay) {
     const { Node, mergeAttributes } = core;
     const { Fragment } = pm.model;
 
@@ -253,7 +326,7 @@ export function createLanguageSection({ core, pm }: Tiptap, languages: Languages
         parseHTML: () => [{ tag: 'div[lang]', getAttrs: acceptKnownLanguages(languages) }],
 
         renderHTML({ node, HTMLAttributes }) {
-            return ['div', mergeAttributes(HTMLAttributes, editorAttributes(languages, node.attrs)), 0];
+            return ['div', mergeAttributes(HTMLAttributes, editorAttributes(languages, display, node.attrs)), 0];
         },
 
         addCommands() {

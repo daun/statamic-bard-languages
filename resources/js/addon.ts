@@ -1,20 +1,25 @@
 import { registerIconSet } from '@statamic/cms/ui';
 import LanguageButton from './components/LanguageButton.vue';
-import { createLanguageSection, createLanguageSpan, type LanguageAttributes } from './tiptap/extensions';
+import {
+    createLanguageSection,
+    createLanguageSpan,
+    defaultDisplay,
+    type EditorDisplay,
+    type LanguageAttributes,
+} from './tiptap/extensions';
 import { createLanguages, type LanguagesConfig } from './language/languages';
 import type { Editor } from '@tiptap/core';
 
 registerIconSet('bard-languages', import.meta.glob('../svg/icons/*.svg', { query: '?raw', import: 'default' }));
 
 Statamic.booting(() => {
-    const languages = createLanguages(
-        Statamic.$config.get<LanguagesConfig>('bardLanguages'),
-        Statamic.$config.get<string>('locale'),
-    );
+    const config = Statamic.$config.get<LanguagesConfig & { editor?: EditorDisplay }>('bardLanguages');
+    const languages = createLanguages(config, Statamic.$config.get<string>('locale'));
+    const display = config?.editor ?? defaultDisplay;
 
     Statamic.$bard.addExtension(({ tiptap }) => [
-        createLanguageSpan(tiptap, languages),
-        createLanguageSection(tiptap, languages),
+        createLanguageSpan(tiptap, languages, display),
+        createLanguageSection(tiptap, languages, display),
     ]);
 
     Statamic.$bard.buttons((buttons, button) => {
