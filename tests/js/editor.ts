@@ -1,10 +1,12 @@
 import * as core from '@tiptap/core';
 import * as model from '@tiptap/pm/model';
+import * as state from '@tiptap/pm/state';
+import * as view from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import { createLanguageSection, createLanguageSpan, type Tiptap } from '../../resources/js/tiptap/extensions';
 import { createLanguages, type LanguagesConfig } from '../../resources/js/language/languages';
 
-const tiptap: Tiptap = { core, pm: { model } };
+const tiptap: Tiptap = { core, pm: { model, state, view } };
 
 // Bard's document: top-level blocks or `root` nodes like sets and language sections.
 const Document = core.Node.create({ name: 'doc', topNode: true, content: '(block | root)+' });
@@ -46,5 +48,5 @@ export function cursor(editor: core.Editor, text: string, offset = 1): void {
 
 /** Editor HTML without the editor-only label attributes. */
 export function html(editor: core.Editor): string {
-    return editor.getHTML().replace(/ (data-bard-language|title)="[^"]*"/g, '');
+    return editor.getHTML().replace(/ (data-bard-language(-code)?|title)="[^"]*"/g, '');
 }

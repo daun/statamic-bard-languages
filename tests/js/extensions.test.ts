@@ -140,8 +140,36 @@ describe('parsing and rendering', () => {
     });
 
     it('labels languages in the editor', () => {
-        const editor = createEditor('<div lang="ar" dir="rtl"><p>Note <span lang="fa">کلمه</span></p></div>');
-        expect(editor.getHTML()).toContain('<div lang="ar" dir="rtl" data-bard-language="Arabic">');
-        expect(editor.getHTML()).toContain('data-bard-language="Persian" title="Persian"');
+        const editor = createEditor('<div lang="ar" dir="rtl"><p>Note <span lang="fa-AF">کلمه</span></p></div>');
+        expect(editor.getHTML()).toContain(
+            '<div lang="ar" dir="rtl" data-bard-language="Arabic" data-bard-language-code="ar">',
+        );
+        expect(editor.getHTML()).toContain('data-bard-language-code="fa" title="');
+    });
+});
+
+describe('language codes', () => {
+    const codes = (editor: ReturnType<typeof createEditor>) =>
+        [...editor.view.dom.querySelectorAll('.bard-language-code')].map((code) => {
+            const span = code.parentElement!.querySelector('span[lang]')!;
+            const before = code.compareDocumentPosition(span) & Node.DOCUMENT_POSITION_FOLLOWING;
+            return `${code.textContent} ${before ? 'before' : 'after'} ${span.textContent}`;
+        });
+
+    it('shows the primary subtag after each span, outside of it', () => {
+        const editor = createEditor('<p>Say <span lang="fr-CA">bon<strong>jour</strong></span>.</p>');
+        expect(codes(editor)).toEqual(['fr after bonjour']);
+        expect(editor.view.dom.querySelector('.bard-language-code')!.closest('span[lang]')).toBeNull();
+        expect(editor.getHTML()).not.toContain('class="bard-language-code"');
+    });
+
+    it('shows the code on the left of right-to-left spans in left-to-right text', () => {
+        const editor = createEditor('<p>Coffee is <span lang="ar">قهوة</span>.</p>');
+        expect(codes(editor)).toEqual(['ar before قهوة']);
+    });
+
+    it('shows the code after spans in a section of the same direction', () => {
+        const editor = createEditor('<div lang="ar"><p>كلمة <span lang="fa">کلمه</span></p></div>');
+        expect(codes(editor)).toEqual(['fa after کلمه']);
     });
 });

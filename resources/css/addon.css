@@ -5,25 +5,43 @@
 }
 
 .bard-content span[data-bard-language] {
+    /* Not text-decoration: Chrome repaints that black under words marked by spellcheck */
     padding-bottom: 1px;
-    border-bottom: 2px solid var(--bard-language-rule);
+    border-bottom: 1.5px solid var(--bard-language-rule);
+}
+
+.bard-content .bard-language-code,
+.bard-content div[data-bard-language]::before {
+    font-size: 0.5625rem;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+    opacity: 0.55;
+    unicode-bidi: isolate;
+    pointer-events: none;
+    user-select: none;
+}
+
+.bard-content .bard-language-code {
+    margin-inline-start: 0.2em;
+    vertical-align: 0.9em;
+}
+
+.bard-content .bard-language-code--before {
+    margin-inline: 0 0.2em;
 }
 
 .bard-content div[data-bard-language] {
     position: relative;
     margin-block: 1.5em;
-    padding-inline-start: 1em;
-    border-inline-start: 2px solid var(--bard-language-rule);
+    padding-inline-start: 0.65em;
+    border-inline-start: 1.5px solid var(--bard-language-rule);
 }
 
 .bard-content div[data-bard-language]::before {
-    content: attr(data-bard-language);
+    content: attr(data-bard-language-code);
     position: absolute;
-    inset-block-end: 100%;
-    inset-inline-start: 1em;
-    font-size: 0.6875rem;
-    line-height: 1.5;
-    opacity: 0.55;
-    pointer-events: none;
-    user-select: none;
+    inset-block-end: calc(100% + 0.4em);
+    inset-inline-start: 0;
+    padding-inline-start: inherit;
 }

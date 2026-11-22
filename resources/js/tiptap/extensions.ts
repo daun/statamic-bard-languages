@@ -1,13 +1,16 @@
 import type * as TiptapCore from '@tiptap/core';
 import type * as ProseMirrorModel from '@tiptap/pm/model';
-import type { Node as ProseMirrorNode, ResolvedPos } from '@tiptap/pm/model';
+import type { MarkType, Node as ProseMirrorNode, NodeType, ResolvedPos } from '@tiptap/pm/model';
+import type * as ProseMirrorState from '@tiptap/pm/state';
 import type { EditorState, Selection, Transaction } from '@tiptap/pm/state';
+import type * as ProseMirrorView from '@tiptap/pm/view';
+import type { Decoration } from '@tiptap/pm/view';
 import type { Direction, Languages } from '../language/languages';
 
 /** The Tiptap modules Statamic passes to Bard extensions, so the addon uses the same instances. */
 export interface Tiptap {
     core: typeof TiptapCore;
-    pm: { model: typeof ProseMirrorModel };
+    pm: { model: typeof ProseMirrorModel; state: typeof ProseMirrorState; view: typeof ProseMirrorView };
 }
 
 export interface LanguageAttributes {
@@ -46,9 +49,75 @@ function languageAttributes(languages: Languages) {
     };
 }
 
-/** Label for addon.css. Editor only: the frontend renders through the PHP extensions. */
+/** Short code shown in the editor: the primary subtag, `de` for `de-AT`. */
+const languageCode = (lang: string): string => lang.split('-')[0]!;
+
+/** Label and short code for addon.css. Editor only: the frontend renders through the PHP extensions. */
 function editorAttributes(languages: Languages, attrs: Record<string, any>) {
-    return { 'data-bard-language': attrs.lang ? languages.label(attrs.lang) : null };
+    return {
+        'data-bard-language': attrs.lang ? languages.label(attrs.lang) : null,
+        'data-bard-language-code': attrs.lang ? languageCode(attrs.lang) : null,
+    };
+}
+
+function codeElement(code: string, before: boolean): HTMLElement {
+    const element = document.createElement('span');
+    element.className = before ? 'bard-language-code bard-language-code--before' : 'bard-language-code';
+    element.textContent = code;
+    element.setAttribute('aria-hidden', 'true');
+    return element;
+}
+
+/**
+ * Language codes next to spans, as widgets: inside the span they would be underlined with it.
+ * The code goes on the span's end in its own direction, so on the left of RTL spans in LTR text.
+ */
+function spanCodes({ state, view }: Tiptap['pm'], spanType: MarkType, sectionType: NodeType | undefined) {
+    const build = (doc: ProseMirrorNode) => {
+        const widgets: Decoration[] = [];
+        doc.descendants((block, pos) => {
+            if (!block.isTextblock) return true;
+
+            const section = sectionType && findSection(doc.resolve(pos), sectionType);
+            const direction = section?.node.attrs.dir ?? 'ltr';
+            const ranges: { mark: ProseMirrorModel.Mark; from: number; to: number }[] = [];
+            block.forEach((child, offset) => {
+                const mark = spanType.isInSet(child.marks);
+                const from = pos + 1 + offset;
+                const last = ranges.at(-1);
+                if (mark && last?.to === from && last.mark.eq(mark)) last.to = from + child.nodeSize;
+                else if (mark) ranges.push({ mark, from, to: from + child.nodeSize });
+            });
+
+            for (const { mark, from, to } of ranges) {
+                const code = languageCode(mark.attrs.lang);
+                const before = (mark.attrs.dir ?? 'ltr') !== direction;
+                widgets.push(
+                    view.Decoration.widget(before ? from : to, () => codeElement(code, before), {
+                        side: before ? 1 : -1,
+                        marks: [],
+                        key: `${code}:${before}`,
+                        ignoreSelection: true,
+                    }),
+                );
+            }
+            return false;
+        });
+        return view.DecorationSet.create(doc, widgets);
+    };
+
+    return new state.Plugin({
+        key: new state.PluginKey('languageSpanCodes'),
+        state: {
+            init: (_, { doc }) => build(doc),
+            apply: (tr, codes) => (tr.docChanged ? build(tr.doc) : codes),
+        },
+        props: {
+            decorations(editorState) {
+                return this.getState(editorState);
+            },
+        },
+    });
 }
 
 /** `getAttrs` accepting elements with a known `lang`: null accepts the element, false rejects it. */
@@ -123,7 +192,7 @@ export function currentLanguages(state: EditorState): Record<LanguageTarget, str
     return { span: spanLanguage(state), section };
 }
 
-export function createLanguageSpan({ core }: Tiptap, languages: Languages) {
+export function createLanguageSpan({ core, pm }: Tiptap, languages: Languages) {
     const { Mark, mergeAttributes } = core;
 
     return Mark.create({
@@ -141,6 +210,10 @@ export function createLanguageSpan({ core }: Tiptap, languages: Languages) {
         renderHTML({ mark, HTMLAttributes }) {
             const attrs = editorAttributes(languages, mark.attrs);
             return ['span', mergeAttributes(HTMLAttributes, attrs, { title: attrs['data-bard-language'] }), 0];
+        },
+
+        addProseMirrorPlugins() {
+            return [spanCodes(pm, this.type, this.editor.schema.nodes.languageSection)];
         },
 
         addCommands() {
